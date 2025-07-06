@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Registro de Movimientos Financieros</title>
+  <style>
+    body { font-family: sans-serif; padding: 30px; background: #f4f4f4; }
+    h1 { color: #005A9C; }
+    table, th, td { border: 1px solid #ccc; border-collapse: collapse; }
+    table { width: 100%; margin-top: 20px; }
+    th, td { padding: 8px; text-align: left; }
+    form > * { display: block; margin-bottom: 10px; }
+    input, select, textarea, button { padding: 8px; width: 100%; max-width: 400px; }
+  </style>
+</head>
+<body>
+
+  <h1>📊 Registro de Movimientos Financieros</h1>
+
+  <form id="financial-form">
+    <select id="tipo">
+      <option value="Ingreso">Ingreso</option>
+      <option value="Egreso">Egreso</option>
+    </select>
+    <input type="datetime-local" id="fecha" required />
+    <input type="text" id="banco" placeholder="Banco" required />
+    <input type="number" id="valor" placeholder="Valor (COP)" required step="any" />
+    <textarea id="descripcion" placeholder="Descripción..."></textarea>
+    <input type="file" id="comprobante" accept="image/*,.pdf" />
+    <button type="submit">➕ Agregar Movimiento</button>
+  </form>
+
+  <button id="export-csv-btn">📁 Exportar CSV</button>
+
+  <table>
+    <thead>
+      <tr>
+        <th>ID</th>
+        <th>Tipo</th>
+        <th>Fecha</th>
+        <th>Banco</th>
+        <th>Valor</th>
+        <th>Descripción</th>
+        <th>Comprobante</th>
+        <th>Acción</th>
+      </tr>
+    </thead>
+    <tbody id="transactions-table-body"></tbody>
+  </table>
+
+  <script>
+  document.addEventListener('DOMContentLoaded', () => {
+    const form = document.getElementById('financial-form');
+    const tableBody = document.getElementById('transactions-table-body');
+    const fechaInput = document.getElementById('fecha');
+    const exportBtn = document.getElementById('export-csv-btn');
+    const apiUrl = '/api/transacciones';
+
+    const formatCurrency = (value) =>
+      new Intl.NumberFormat('es-CO', {
+        style: 'currency',
+        currency: 'COP',
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 2
+      }).format(value);
+
+    const renderUI = async () => {
+      const response = await fetch(apiUrl);
+      const transactions = await response.json();
+
+      tableBody.innerHTML = '';
+      if (transactions.length === 0) {
+        tableBody.innerHTML = '<tr><td colspan="8" style="text-align:center;">No hay movimientos aún.</td></tr>';
+        return;
+      }
+
+      transactions.forEach(tx => {
+        const tr = document.createElement('tr');
+        const isPDF = tx.comprobante?.startsWith('data:application/pdf');
+        const comprobanteHtml = tx.comprobante
+          ? `<a href="${tx.comprobante}" target="_blank">${isPDF ? 'Ver PDF' : 'Ver Imagen'}</a>`
+          : `<span>PENDIENTE</span>`;
+        tr.innerHTML = `
+          <td>${tx._id}</td>
+          <td>${tx.tipo}</td>
+          <td>${new Date(tx.fecha).toLocaleString('es-CO')}</td>
+          <td>${tx.banco}</td>
+          <td>${formatCurrency(tx.valor)}</td>
+          <td>${tx.descripcion}</td>
+          <td>${comprobanteHtml}</td>
+          <td><button class="delete-btn" data-id="${tx._id}">🗑️</button></td>
+        `;
+        tableBody.appendChild(tr);
+      });
+    };
+
+    const handleFormSubmit = async (e) => {
+      e.preventDefault();
+      const tipo = document.getElementById('tipo').value;
+      const fecha = document.getElementById('fecha').value;
+      const banco = document.getElementById('banco').value.trim();
+      const valor = parseFloat(document.getElementById('valor').value);
+      let descripcion = document.getElementById('descripcion').value.trim();
+      const file = document.getElementById('comprobante').files[0];
+
+      if (descripcion === '') descripcion = 'PENDIENTE COMPROBANTE';
+      if (!fecha || !banco || isNaN(valor)) {
+        alert('Por favor, completa todos los campos.');
+        return;
+      }
+
+      const sendTransaction = (comprobanteData) => {
+        fetch(apiUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ tipo, fecha, banco, valor, descripcion, comprobante: comprobanteData })
+        }).then(() => {
+          renderUI();
+          form.reset();
+          setInitialDateTime();
+        });
+      };
+
+      if (file) {
+        const reader = new FileReader();
+        reader.onload = (e) => sendTransaction(e.target.result);
+        reader.onerror = () => { alert('Error con el archivo.'); sendTransaction(null); };
+        reader.readAsDataURL(file);
+      } else {
+        sendTransaction(null);
+      }
+    };
+
+    const handleTableActions = async (e) => {
+      const target = e.target;
+      if (target.classList.contains('delete-btn')) {
+        const id = target.dataset.id;
+        if (confirm('¿Eliminar este movimiento?')) {
+          await fetch(`${apiUrl}/${id}`, { method: 'DELETE' });
+          renderUI();
+        }
+      }
+    };
+
+    const setInitialDateTime = () => {
+      const now = new Date();
+      now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+      fechaInput.value = now.toISOString().slice(0, 16);
+    };
+
+    form.addEventListener('submit', handleFormSubmit);
+    tableBody.addEventListener('click', handleTableActions);
+    exportBtn.addEventListener('click', () => alert('Funcionalidad de exportar en desarrollo.'));
+
+    setInitialDateTime();
+    renderUI();
+  });
+  </script>
+</body>
+</html>
