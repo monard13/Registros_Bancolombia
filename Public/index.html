@@ -28,6 +28,10 @@
         <h3>Balance General</h3>
         <p id="balance-general">$0</p>
       </div>
+      <div class="card" id="card-liquido">
+        <h3>💰 Saldo Líquido</h3>
+        <p id="saldo-liquido">$0</p>
+      </div>
     </div>
 
     <!-- EXPORTACIÓN -->
@@ -67,11 +71,11 @@
       </div>
       <div class="form-group full-width">
         <label for="descripcion">DESCRIPCIÓN</label>
-        <textarea id="descripcion" rows="2" placeholder="Ej: Compra de materiales"></textarea>
+        <textarea id="descripcion" rows="2" placeholder="Referencia"></textarea>
       </div>
       <div class="form-group full-width">
-        <label for="comprobante">ADJUNTAR COMPROBANTE (Opcional)</label>
-        <input type="file" id="comprobante" accept="image/*,.pdf">
+        <label for="comprobante">LINK DEL COMPROBANTE (Opcional)</label>
+        <input type="text" id="comprobante" placeholder="Pega el link de Google Drive aquí">
       </div>
       <button type="submit" id="submit-btn" class="full-width">➕ Agregar Movimiento</button>
     </form>
