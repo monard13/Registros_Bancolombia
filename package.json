@@ -1,7 +1,14 @@
 {
+  "name": "registros-financieros",
+  "version": "1.0.0",
+  "description": "Aplicación para registrar movimientos financieros",
+  "main": "Server/app.js",
   "scripts": {
     "start": "node Server/app.js"
   },
+  "keywords": [],
+  "author": "Pelotudinho",
+  "license": "MIT",
   "dependencies": {
     "body-parser": "^2.2.0",
     "cors": "^2.8.5",
