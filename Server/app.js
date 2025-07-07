@@ -13,7 +13,7 @@ const PORT = process.env.PORT || 3000;
 // Middlewares
 app.use(cors());
 app.use(bodyParser.json());
-app.use(express.static(path.join(__dirname, '../public'))); // sirve tu index.html
+app.use(express.static(path.join(__dirname, '../Public'))); // sirve tu index.html
 
 // Conexión a MongoDB
 mongoose.connect(process.env.MONGODB_URI, {
