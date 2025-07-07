@@ -1,5 +1,5 @@
 document.addEventListener("DOMContentLoaded", () => {
-  const API_URL = "/api/transacciones";
+  const API_URL = "/api/transacciones"; // URL relativa para producción
   let todasLasTransacciones = [];
 
   // --- Elementos del DOM ---
@@ -25,13 +25,17 @@ document.addEventListener("DOMContentLoaded", () => {
 
   const calcularYActualizarDashboard = (transacciones) => {
     let ingresosConfirmados = 0, ingresosPendientes = 0, egresos = 0, totalValorLiquido = 0;
+    
     transacciones.forEach((t) => {
       if (t.tipo === "Ingreso") {
         if (t.estado === 'pendiente') {
           ingresosPendientes += t.valor;
         } else {
           ingresosConfirmados += t.valor;
-          totalValorLiquido += (t.valor - (t.valor * 0.004) - (t.valor * 0.01));
+          // --- CÁLCULO CORREGIDO AQUÍ (Dashboard) ---
+          const impuesto = t.valor * 0.004;
+          const comision = (t.valor - impuesto) * 0.01;
+          totalValorLiquido += (t.valor - impuesto - comision);
         }
       } else if (t.tipo === "Egreso") {
         egresos += t.valor;
@@ -48,9 +52,11 @@ document.addEventListener("DOMContentLoaded", () => {
   const renderizarTabla = (transacciones) => {
     transactionsTableBody.innerHTML = "";
     transacciones.forEach((t, index) => {
+      // --- CÁLCULO CORREGIDO AQUÍ (Tabla) ---
       const impuesto = t.tipo === 'Ingreso' && t.estado !== 'pendiente' ? t.valor * 0.004 : 0;
-      const comision = t.tipo === 'Ingreso' && t.estado !== 'pendiente' ? t.valor * 0.01 : 0;
+      const comision = t.tipo === 'Ingreso' && t.estado !== 'pendiente' ? (t.valor - impuesto) * 0.01 : 0;
       const valorLiquido = t.tipo === 'Ingreso' && t.estado !== 'pendiente' ? t.valor - impuesto - comision : t.valor;
+
       const tipoHtml = t.estado === 'pendiente' ? `<span title="Ingreso pendiente de confirmación">${t.tipo} ⚠️</span>` : t.tipo;
       const comprobanteHtml = t.comprobante ? `<a href="${t.comprobante}" target="_blank" class="link-comprobante">Ver Link</a>` : 'No';
       const row = document.createElement("tr");
@@ -77,11 +83,11 @@ document.addEventListener("DOMContentLoaded", () => {
       renderizarTabla(transacciones);
     } catch (err) {
       console.error("Error al cargar datos:", err);
-      alert("No se pudieron cargar los datos del servidor.");
+      // No mostraremos la alerta en producción para una mejor experiencia de usuario
+      // alert("No se pudieron cargar los datos del servidor.");
     }
   };
   
-  // --- Event Listener para CREAR registros ---
   financialForm.addEventListener("submit", async (e) => {
     e.preventDefault();
     const nuevaTransaccion = {
@@ -104,7 +110,6 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   });
   
-  // --- Event Listener para la tabla (EDITAR, BORRAR, GUARDAR, CANCELAR) ---
   transactionsTableBody.addEventListener('click', async (e) => {
     const row = e.target.closest('tr');
     if (!row) return;
@@ -147,7 +152,6 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   });
 
-  // --- Event Listener para EXPORTAR ---
   exportCsvBtn.addEventListener('click', () => {
     const startDate = startDateInput.value ? new Date(startDateInput.value + 'T00:00:00') : null;
     const endDate = endDateInput.value ? new Date(endDateInput.value + 'T23:59:59') : null;
@@ -163,7 +167,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const csvRows = [headers.join(',')];
     transaccionesFiltradas.forEach((t, index) => {
       const impuesto = t.tipo === 'Ingreso' && t.estado !== 'pendiente' ? t.valor * 0.004 : 0;
-      const comision = t.tipo === 'Ingreso' && t.estado !== 'pendiente' ? t.valor * 0.01 : 0;
+      const comision = t.tipo === 'Ingreso' && t.estado !== 'pendiente' ? (t.valor-impuesto) * 0.01 : 0;
       const valorLiquido = t.tipo === 'Ingreso' && t.estado !== 'pendiente' ? t.valor - impuesto - comision : t.valor;
       const row = [
         transaccionesFiltradas.length - index, t.tipo, t.estado, `"${new Date(t.fecha).toLocaleString('es-CO')}"`,
@@ -181,6 +185,5 @@ document.addEventListener("DOMContentLoaded", () => {
     document.body.removeChild(link);
   });
   
-  // --- Carga inicial de datos ---
   cargarDatos();
 });
