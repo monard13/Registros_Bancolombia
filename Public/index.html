@@ -55,7 +55,7 @@
     const tableBody = document.getElementById('transactions-table-body');
     const fechaInput = document.getElementById('fecha');
     const exportBtn = document.getElementById('export-csv-btn');
-    const apiUrl = '/api/transacciones';
+    const apiUrl = 'https://registros-bancolombia.onrender.com/api/transacciones';
 
     const formatCurrency = (value) =>
       new Intl.NumberFormat('es-CO', {
