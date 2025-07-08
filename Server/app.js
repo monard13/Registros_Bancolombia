@@ -10,49 +10,46 @@ require('dotenv').config();
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// --- Middlewares Esenciales ---
+// --- CONFIGURACIÓN ESENCIAL ---
 app.use(cors());
 app.use(bodyParser.json());
-// La siguiente línea es la clave para que el login funcione
-app.use(bodyParser.urlencoded({ extended: true })); 
-
-// Servir archivos estáticos PÚBLICOS (login.html, css, etc.)
-// La página de login y sus estilos son públicos y no necesitan autenticación.
-app.use(express.static(path.join(__dirname, '../Public')));
+app.use(bodyParser.urlencoded({ extended: true }));
+app.set('trust proxy', 1); 
 
 // --- Configuración de Sesión ---
-// Debe ir después de los middlewares básicos y antes de las rutas que la usan.
 app.use(session({
   secret: process.env.SESSION_SECRET,
   resave: false,
   saveUninitialized: false,
-  cookie: { secure: process.env.NODE_ENV === 'production' }
+  cookie: { 
+    secure: process.env.NODE_ENV === 'production',
+    httpOnly: true,
+    maxAge: 24 * 60 * 60 * 1000 // 1 día
+  }
 }));
 
-// --- Rutas Públicas de Autenticación ---
+// --- Rutas Públicas ---
+app.use(express.static(path.join(__dirname, '../Public')));
+
 app.post('/login', (req, res) => {
   const { username, password } = req.body;
   if (username === process.env.APP_USER && password === process.env.APP_PASSWORD) {
     req.session.isLoggedIn = true;
-    res.redirect('/'); // Redirige a la página principal de la app
+    res.redirect('/');
   } else {
-    // Envía un script para mostrar una alerta y redirigir
     res.send('<script>alert("Usuario o contraseña incorrectos."); window.location.href="/login.html";</script>');
   }
 });
 
 app.get('/logout', (req, res) => {
   req.session.destroy(err => {
-    if (err) {
-      return res.redirect('/');
-    }
+    if (err) { return res.redirect('/'); }
     res.clearCookie('connect.sid');
     res.redirect('/login.html');
   });
 });
 
-// --- Middleware de Autenticación (El "Guardia de Seguridad") ---
-// Este middleware se aplicará a TODAS las rutas definidas después de él.
+// --- Middleware de Autenticación ---
 const isLoggedIn = (req, res, next) => {
   if (req.session.isLoggedIn) {
     return next();
@@ -63,12 +60,17 @@ const isLoggedIn = (req, res, next) => {
 // --- A partir de aquí, TODAS las rutas están protegidas ---
 app.use(isLoggedIn);
 
-// --- Rutas Protegidas ---
+// --- Ruta Principal Protegida ---
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, '../Public/app.html'));
 });
 
-// --- API (ya protegida por el app.use(isLoggedIn) de arriba) ---
+
+// --- Base de Datos y Esquema ---
+mongoose.connect(process.env.MONGODB_URI)
+  .then(() => console.log('Conectado a MongoDB'))
+  .catch(err => console.error('Error de conexión:', err));
+
 const transaccionSchema = new mongoose.Schema({
   tipo: String,
   fecha: String,
@@ -80,10 +82,8 @@ const transaccionSchema = new mongoose.Schema({
 });
 const Transaccion = mongoose.model('Transaccion', transaccionSchema);
 
-mongoose.connect(process.env.MONGODB_URI)
-  .then(() => console.log('Conectado a MongoDB'))
-  .catch((err) => console.error('Error de conexión a MongoDB:', err));
 
+// --- Rutas de la API (Protegidas) ---
 app.get('/api/transacciones', async (req, res) => {
   const transacciones = await Transaccion.find().sort({ _id: -1 });
   res.json(transacciones);
@@ -110,7 +110,9 @@ app.put('/api/transacciones/:id', async (req, res) => {
     const { id } = req.params;
     const { descripcion, comprobante } = req.body;
     const transaccion = await Transaccion.findById(id);
-    if (!transaccion) return res.status(404).json({ error: 'Transacción no encontrada' });
+    if (!transaccion) {
+      return res.status(404).json({ error: 'Transacción no encontrada' });
+    }
     transaccion.descripcion = descripcion;
     transaccion.comprobante = comprobante;
     if (transaccion.tipo === 'Ingreso' && (comprobante && comprobante.trim() !== '')) {
